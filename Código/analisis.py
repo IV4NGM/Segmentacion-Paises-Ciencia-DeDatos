@@ -719,3 +719,491 @@ for bar, acc in zip(bars, accuracies):
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.show()
+
+# REGRESIÓN LINEAL PARA PREDECIR INDICADORES
+
+# GDP per cápita
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error
+import scipy.stats as stats
+
+
+X_reg = df_scaled.drop(["gdp_per_capita", "cluster"], axis=1, errors="ignore")
+df_unscaled = pd.DataFrame(
+    scaler.inverse_transform(df_scaled.drop("cluster", axis=1)),
+    columns=df_scaled.drop("cluster", axis=1).columns,
+    index=df_scaled.index,
+)
+y_reg = df_unscaled["gdp_per_capita"]
+
+X_reg = X_reg.loc[:, X_reg.nunique() > 1]
+
+print(f"Predictors: {X_reg.shape[1]} indicators")
+print(f"Target: GDP per capita")
+print(f"Sample size: {X_reg.shape[0]} countries")
+
+X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(
+    X_reg, y_reg, test_size=0.3, random_state=42
+)
+
+lr_model = LinearRegression()
+lr_model.fit(X_train_reg, y_train_reg)
+
+y_pred_reg = lr_model.predict(X_test_reg)
+
+# Evaluar el modelo
+r2 = r2_score(y_test_reg, y_pred_reg)
+rmse = np.sqrt(mean_squared_error(y_test_reg, y_pred_reg))
+mae = np.mean(np.abs(y_test_reg - y_pred_reg))
+
+print(f"\nRegression Performance:")
+print(f"R² Score: {r2:.3f}")
+print(f"RMSE: ${rmse:,.0f}")
+print(f"MAE: ${mae:,.0f}")
+print(f"Mean GDP: ${y_reg.mean():,.0f}")
+
+# Análisis de coeficientes
+feature_coef = pd.DataFrame(
+    {
+        "feature": X_reg.columns,
+        "coefficient": lr_model.coef_,
+        "abs_coefficient": np.abs(lr_model.coef_),
+    }
+).sort_values("abs_coefficient", ascending=False)
+
+print("\nTop 10 Most Influential Predictors of GDP per capita:")
+print("(Positive coefficients increase GDP, negative decrease)")
+for i, row in feature_coef.head(10).iterrows():
+    direction = "+" if row["coefficient"] > 0 else "-"
+    print(f"  {direction} {row['feature']}: {row['coefficient']:,.0f}")
+
+
+# Visualize regression results
+plt.figure(figsize=(15, 5))
+
+# Plot 1: Actual vs Predicted
+plt.subplot(1, 3, 1)
+plt.scatter(y_test_reg, y_pred_reg, alpha=0.7, color="blue")
+plt.plot(
+    [y_test_reg.min(), y_test_reg.max()],
+    [y_test_reg.min(), y_test_reg.max()],
+    "r--",
+    lw=2,
+)
+plt.xlabel("Actual GDP per capita ($)")
+plt.ylabel("Predicted GDP per capita ($)")
+plt.title(f"Actual vs Predicted GDP\nR² = {r2:.3f}")
+plt.grid(True, alpha=0.3)
+
+# Plot 2: Residuals
+plt.subplot(1, 3, 2)
+residuals = y_test_reg - y_pred_reg
+plt.scatter(y_pred_reg, residuals, alpha=0.7, color="green")
+plt.axhline(y=0, color="r", linestyle="--")
+plt.xlabel("Predicted GDP per capita ($)")
+plt.ylabel("Residuals ($)")
+plt.title("Residual Plot")
+plt.grid(True, alpha=0.3)
+
+# Plot 3: Top feature coefficients
+plt.subplot(1, 3, 3)
+top_features = feature_coef.head(8)
+colors = ["green" if x > 0 else "red" for x in top_features["coefficient"]]
+plt.barh(top_features["feature"], top_features["coefficient"], color=colors, alpha=0.7)
+plt.xlabel("Coefficient Value")
+plt.title("Top Feature Coefficients\n(Impact on GDP per capita)")
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Regresión lineal para esperanza de vida
+
+
+X_reg = df_scaled.drop(["life_expectancy", "cluster"], axis=1, errors="ignore")
+df_unscaled = pd.DataFrame(
+    scaler.inverse_transform(df_scaled.drop("cluster", axis=1)),
+    columns=df_scaled.drop("cluster", axis=1).columns,
+    index=df_scaled.index,
+)
+y_reg = df_unscaled["life_expectancy"]
+
+X_reg = X_reg.loc[:, X_reg.nunique() > 1]
+
+print(f"Predictors: {X_reg.shape[1]} indicators")
+print(f"Target: Life Expectancy")
+print(f"Sample size: {X_reg.shape[0]} countries")
+
+X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(
+    X_reg, y_reg, test_size=0.3, random_state=42
+)
+
+lr_model = LinearRegression()
+lr_model.fit(X_train_reg, y_train_reg)
+
+y_pred_reg = lr_model.predict(X_test_reg)
+
+# Evaluar el modelo
+r2 = r2_score(y_test_reg, y_pred_reg)
+rmse = np.sqrt(mean_squared_error(y_test_reg, y_pred_reg))
+mae = np.mean(np.abs(y_test_reg - y_pred_reg))
+
+print(f"\nRegression Performance:")
+print(f"R² Score: {r2:.3f}")
+print(f"RMSE: {rmse:,.1f} years")
+print(f"MAE: {mae:,.1f} years")
+print(f"Mean Life Expectancy: {y_reg.mean():,.1f} years")
+
+# Análisis de coeficientes
+feature_coef = pd.DataFrame(
+    {
+        "feature": X_reg.columns,
+        "coefficient": lr_model.coef_,
+        "abs_coefficient": np.abs(lr_model.coef_),
+    }
+).sort_values("abs_coefficient", ascending=False)
+
+print("\nTop 10 Most Influential Predictors of Life Expectancy:")
+print("(Positive coefficients increase life expectancy, negative decrease)")
+for i, row in feature_coef.head(10).iterrows():
+    direction = "+" if row["coefficient"] > 0 else "-"
+    print(f"  {direction} {row['feature']}: {row['coefficient']:,.0f}")
+
+
+# Visualize regression results
+plt.figure(figsize=(15, 5))
+
+# Plot 1: Actual vs Predicted
+plt.subplot(1, 3, 1)
+plt.scatter(y_test_reg, y_pred_reg, alpha=0.7, color="blue")
+plt.plot(
+    [y_test_reg.min(), y_test_reg.max()],
+    [y_test_reg.min(), y_test_reg.max()],
+    "r--",
+    lw=2,
+)
+plt.xlabel("Actual Life Expectancy (years)")
+plt.ylabel("Predicted Life Expectancy (years)")
+plt.title(f"Actual vs Predicted Life Expectancy\nR² = {r2:.3f}")
+plt.grid(True, alpha=0.3)
+
+# Plot 2: Residuals
+plt.subplot(1, 3, 2)
+residuals = y_test_reg - y_pred_reg
+plt.scatter(y_pred_reg, residuals, alpha=0.7, color="green")
+plt.axhline(y=0, color="r", linestyle="--")
+plt.xlabel("Predicted Life Expectancy (years)")
+plt.ylabel("Residuals (years)")
+plt.title("Residual Plot")
+plt.grid(True, alpha=0.3)
+
+# Plot 3: Top feature coefficients
+plt.subplot(1, 3, 3)
+top_features = feature_coef.head(8)
+colors = ["green" if x > 0 else "red" for x in top_features["coefficient"]]
+plt.barh(top_features["feature"], top_features["coefficient"], color=colors, alpha=0.7)
+plt.xlabel("Coefficient Value")
+plt.title("Top Feature Coefficients\n(Impact on Life Expectancy)")
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Regresión lineal dentro de clusters
+
+# GDP per cápita por cluster
+for cluster_id in range(optimal_k):
+    cluster_data = df_imputed[df_imputed["cluster"] == cluster_id]
+
+    if len(cluster_data) > 10:
+        X_cluster = cluster_data.drop(
+            ["gdp_per_capita", "cluster"], axis=1, errors="ignore"
+        )
+        y_cluster = cluster_data["gdp_per_capita"]
+
+        X_cluster = X_cluster.loc[:, X_cluster.nunique() > 1]
+
+        if len(X_cluster.columns) > 0 and len(cluster_data) > len(X_cluster.columns):
+            lr_cluster = LinearRegression()
+            lr_cluster.fit(X_cluster, y_cluster)
+
+            r2_cluster = lr_cluster.score(X_cluster, y_cluster)
+
+            print(f"\nCluster {cluster_id}:")
+            print(f"  Countries: {len(cluster_data)}, R²: {r2_cluster:.3f}")
+
+            # Get top predictor
+            if len(lr_cluster.coef_) > 0:
+                top_idx = np.argmax(np.abs(lr_cluster.coef_))
+                top_feature = X_cluster.columns[top_idx]
+                top_impact = lr_cluster.coef_[top_idx]
+                direction = "increases" if top_impact > 0 else "decreases"
+                print(f"  Key driver: {top_feature} ({direction} GDP)")
+
+
+# Esperanza de vida por cluster
+for cluster_id in range(optimal_k):
+    cluster_data = df_imputed[df_imputed["cluster"] == cluster_id]
+
+    if len(cluster_data) > 10:
+        X_cluster = cluster_data.drop(
+            ["life_expectancy", "cluster"], axis=1, errors="ignore"
+        )
+        y_cluster = cluster_data["life_expectancy"]
+
+        X_cluster = X_cluster.loc[:, X_cluster.nunique() > 1]
+
+        if len(X_cluster.columns) > 0 and len(cluster_data) > len(X_cluster.columns):
+            lr_cluster = LinearRegression()
+            lr_cluster.fit(X_cluster, y_cluster)
+
+            r2_cluster = lr_cluster.score(X_cluster, y_cluster)
+
+            print(f"\nCluster {cluster_id}:")
+            print(f"  Countries: {len(cluster_data)}, R²: {r2_cluster:.3f}")
+
+            # Get top predictor
+            if len(lr_cluster.coef_) > 0:
+                top_idx = np.argmax(np.abs(lr_cluster.coef_))
+                top_feature = X_cluster.columns[top_idx]
+                top_impact = lr_cluster.coef_[top_idx]
+                direction = "increases" if top_impact > 0 else "decreases"
+                print(f"  Key driver: {top_feature} ({direction} Life Expectancy)")
+
+# ANÁLISIS PAREJAS DE VARIABLES
+
+
+X_bivariate = df_unscaled[["gdp_per_capita"]].values
+y_bivariate = df_unscaled["life_expectancy"].values
+
+lr_simple = LinearRegression()
+lr_simple.fit(X_bivariate, y_bivariate)
+
+y_pred_simple = lr_simple.predict(X_bivariate)
+r2_simple = r2_score(y_bivariate, y_pred_simple)
+
+print(f"GDP per capita vs Life Expectancy:")
+print(f"  R²: {r2_simple:.3f}")
+print(
+    f"  Coefficient: {lr_simple.coef_[0]:.6f} (each $1k GDP → {lr_simple.coef_[0]*1000:.2f} years life expectancy)"
+)
+print(f"  Intercept: {lr_simple.intercept_:.2f} years")
+
+
+# Visualize bivariate relationships
+plt.figure(figsize=(15, 5))
+
+# Plot 1: GDP vs Life Expectancy
+plt.subplot(1, 2, 1)
+plt.scatter(
+    df_unscaled["gdp_per_capita"],
+    df_unscaled["life_expectancy"],
+    alpha=0.6,
+    c=df_imputed["cluster"],
+    cmap="tab10",
+)
+
+# Plot regression line
+x_range = np.linspace(
+    df_unscaled["gdp_per_capita"].min(), df_unscaled["gdp_per_capita"].max(), 100
+)
+y_range = lr_simple.predict(x_range.reshape(-1, 1))
+plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_simple:.3f}")
+
+plt.xlabel("GDP per capita ($)")
+plt.ylabel("Life Expectancy (years)")
+plt.title("GDP vs Life Expectancy")
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+# Plot 2: Governance vs GDP
+plt.subplot(1, 2, 2)
+plt.scatter(
+    df_unscaled["government_effectiveness"],
+    df_unscaled["gdp_per_capita"],
+    alpha=0.6,
+    c=df_imputed["cluster"],
+    cmap="tab10",
+)
+
+# Simple regression line
+X_gov = df_unscaled[["government_effectiveness"]].values
+y_gov = df_unscaled["gdp_per_capita"].values
+lr_gov = LinearRegression()
+lr_gov.fit(X_gov, y_gov)
+r2_gov = lr_gov.score(X_gov, y_gov)
+
+x_range = np.linspace(X_gov.min(), X_gov.max(), 100)
+y_range = lr_gov.predict(x_range.reshape(-1, 1))
+plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_gov:.3f}")
+
+plt.xlabel("Government Effectiveness")
+plt.ylabel("GDP per capita ($)")
+plt.title("Governance vs Economic Development")
+plt.legend()
+plt.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Correlaciones entre variables importantes
+
+key_pairs = [
+    ("gdp_per_capita", "life_expectancy"),
+    ("gdp_per_capita", "government_effectiveness"),
+    ("life_expectancy", "infant_mortality"),
+]
+
+for var1, var2 in key_pairs:
+    if var1 in df_unscaled.columns and var2 in df_unscaled.columns:
+        # Remove missing values
+        data_pair = df_unscaled[[var1, var2]].dropna()
+        if len(data_pair) > 10:
+            corr_coef, p_value = stats.pearsonr(data_pair[var1], data_pair[var2])
+            significance = (
+                "***"
+                if p_value < 0.001
+                else "**" if p_value < 0.01 else "*" if p_value < 0.05 else ""
+            )
+            print(f"{var1} vs {var2}:")
+            print(f"  Correlation: {corr_coef:.3f} {significance}")
+            print(f"  p-value: {p_value:.4f}")
+            print(f"  Sample size: {len(data_pair)} countries")
+
+# Síntesis de resultados
+
+results = {
+    "dataset_info": {
+        "n_countries": len(df_imputed),
+        "n_indicators": len(df_imputed.columns) - 1,
+        "optimal_clusters": optimal_k,
+    },
+    "model_performance": {
+        "random_forest_cv": cv_scores.mean(),
+        "random_forest_test": rf_test_score,
+        "neural_network_test": nn_test_score,
+    },
+}
+
+print(f"\nRESUMEN DEL CONJUNTO DE DATOS:")
+print(f"   • Países analizados: {results['dataset_info']['n_countries']}")
+print(f"   • Indicadores de desarrollo: {results['dataset_info']['n_indicators']}")
+print(f"   • Número óptimo de clusters: {results['dataset_info']['optimal_clusters']}")
+
+print(f"\nRENDIMIENTO DEL MODELO:")
+print(
+    f"   • Random Forest CV Accuracy: {results['model_performance']['random_forest_cv']:.3f}"
+)
+print(
+    f"   • Random Forest Test Accuracy: {results['model_performance']['random_forest_test']:.3f}"
+)
+print(
+    f"   • Neural Network Test Accuracy: {results['model_performance']['neural_network_test']:.3f}"
+)
+
+# Análisis de países que son mejores y peores en desarrollo por cluster
+
+# Calculate relative performance
+if "cluster" not in df_unscaled.columns and "cluster" in df_imputed.columns:
+    df_unscaled["cluster"] = df_imputed["cluster"]
+
+df_unscaled["economic_rank"] = df_unscaled["gdp_per_capita"].rank()
+df_unscaled["health_rank"] = df_unscaled["life_expectancy"].rank()
+df_unscaled["development_gap"] = (
+    df_unscaled["economic_rank"] - df_unscaled["health_rank"]
+)
+gap_by_cluster = df_unscaled.groupby("cluster")["development_gap"].mean()
+plt.figure(figsize=(15, 5))
+
+plt.subplot(1, 3, 1)
+# Plot development gap by cluster
+plt.bar(
+    range(len(gap_by_cluster)),
+    gap_by_cluster.values,
+    color=plt.cm.Set3(range(len(gap_by_cluster))),
+    alpha=0.7,
+)
+plt.xlabel("Cluster")
+plt.ylabel("Average Development Gap (Economic - Health Rank)")
+plt.title("Development Gap by Cluster")
+plt.xticks(range(len(gap_by_cluster)), [f"C{i}" for i in gap_by_cluster.index])
+plt.axhline(y=0, color="red", linestyle="--", alpha=0.7)
+
+plt.subplot(1, 3, 2)
+# Identify outliers (countries with large gaps)
+threshold = df_unscaled["development_gap"].std() * 1.5
+outliers_positive = df_unscaled[df_unscaled["development_gap"] > threshold]
+outliers_negative = df_unscaled[df_unscaled["development_gap"] < -threshold]
+
+print(f"Countries with much better economic than health development:")
+for country in outliers_positive.index[:5]:
+    print(f"  {country}: gap = {outliers_positive.loc[country, 'development_gap']:.1f}")
+
+print(f"\nCountries with much better health than economic development:")
+for country in outliers_negative.index[:5]:
+    print(f"  {country}: gap = {outliers_negative.loc[country, 'development_gap']:.1f}")
+
+# Scatter plot with highlights
+colors_scatter = ["gray"] * len(df_unscaled)
+sizes = [30] * len(df_unscaled)
+
+for idx in outliers_positive.index:
+    pos = df_unscaled.index.get_loc(idx)
+    colors_scatter[pos] = "red"
+    sizes[pos] = 100
+
+for idx in outliers_negative.index:
+    pos = df_unscaled.index.get_loc(idx)
+    colors_scatter[pos] = "green"
+    sizes[pos] = 100
+
+plt.scatter(
+    df_unscaled["gdp_per_capita"],
+    df_unscaled["life_expectancy"],
+    c=colors_scatter,
+    s=sizes,
+    alpha=0.7,
+)
+plt.xlabel("GDP per capita ($)")
+plt.ylabel("Life Expectancy (years)")
+plt.title(
+    "Development Mismatches\nRed: Over-performing economically, Green: Over-performing health"
+)
+
+plt.subplot(1, 3, 3)
+# Analyze what drives mismatches
+if len(outliers_positive) > 0:
+    mismatch_features = []
+    for feature in [
+        "government_effectiveness",
+        "health_expenditure",
+        "control_corruption",
+    ]:
+        if feature in df_unscaled.columns:
+            positive_mean = outliers_positive[feature].mean()
+            negative_mean = (
+                outliers_negative[feature].mean() if len(outliers_negative) > 0 else 0
+            )
+            overall_mean = df_unscaled[feature].mean()
+
+            mismatch_features.append(
+                (feature, positive_mean - overall_mean, negative_mean - overall_mean)
+            )
+
+    if len(mismatch_features) > 0:
+        features, pos_diffs, neg_diffs = zip(*mismatch_features)
+        x = np.arange(len(features))
+
+        plt.bar(x - 0.2, pos_diffs, 0.4, label="Economic Over-performers", alpha=0.7)
+        if len(outliers_negative) > 0:
+            plt.bar(x + 0.2, neg_diffs, 0.4, label="Health Over-performers", alpha=0.7)
+        plt.axhline(y=0, color="black", linestyle="-", alpha=0.3)
+        plt.xlabel("Features")
+        plt.ylabel("Difference from Overall Mean")
+        plt.title("Characteristics of Mismatched Countries")
+        plt.xticks(x, features, rotation=45)
+        plt.legend()
+
+plt.tight_layout()
+plt.show()
