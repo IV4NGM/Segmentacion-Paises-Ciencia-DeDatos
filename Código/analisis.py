@@ -168,6 +168,9 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
+print("Varianza explicada acumulada por componentes principales:")
+print(pca.explained_variance_ratio_.cumsum())
+
 # Gráficas de los loadings
 plt.figure(figsize=(20, 6))
 
@@ -563,31 +566,264 @@ plt.show()
 
 # Comparación de modelos de clasificación no supervisada
 
-print("--- Clustering Method Comparison ---")
-
-# K-Means
-print(f"\nK-Means Clustering:")
-print(
-    f"Optimal number of clusters: {optimal_k} (Silhouette Score: {max(silhouette_scores):.3f})"
+from sklearn.metrics import (
+    silhouette_score,
+    davies_bouldin_score,
+    calinski_harabasz_score,
 )
-print("Cluster Distribution:")
-print(df_imputed["cluster"].value_counts().sort_index())
 
-# Hierarchical Clustering
-print(f"\nHierarchical Clustering:")
-print(
-    f"Optimal number of clusters: {optimal_k_hc} (Silhouette Score: {max(hc_silhouette_scores):.3f})"
-)
-print("Cluster Distribution:")
-print(df_scaled["hc_cluster_optimal"].value_counts().sort_index())
+X = df_scaled.select_dtypes(include=[np.number]).copy()
 
-# Spectral Clustering
-print(f"\nSpectral Clustering:")
-print(
-    f"Optimal number of clusters: {optimal_k_spectral} (Silhouette Score: {max(spectral_silhouette_scores):.3f})"
-)
-print("Cluster Distribution:")
-print(df_scaled["spectral_cluster_optimal"].value_counts().sort_index())
+for col in ["cluster", "hc_cluster_optimal", "spectral_cluster_optimal"]:
+    if col in X.columns:
+        X = X.drop(columns=[col])
+
+X = X.fillna(X.median())
+
+X_values = X.values
+
+labels_dict = {}
+if "cluster" in df_scaled.columns:
+    labels_dict["kmeans"] = df_scaled["cluster"].astype(int).values
+
+if "hc_cluster_optimal" in df_scaled.columns:
+    labels_dict["hierarchical"] = df_scaled["hc_cluster_optimal"].astype(int).values
+
+if "spectral_cluster_optimal" in df_scaled.columns:
+    labels_dict["spectral"] = df_scaled["spectral_cluster_optimal"].astype(int).values
+
+results = []
+for name, labels in labels_dict.items():
+    n_clusters = len(np.unique(labels))
+    if n_clusters <= 1:
+        print(f"Skipping metrics for {name}: only {n_clusters} cluster(s) present.")
+        continue
+    try:
+        sil = silhouette_score(X_values, labels)
+    except Exception as e:
+        sil = np.nan
+        print(f"Silhouette error for {name}: {e}")
+    try:
+        db = davies_bouldin_score(X_values, labels)
+    except Exception as e:
+        db = np.nan
+        print(f"Davies–Bouldin error for {name}: {e}")
+    try:
+        ch = calinski_harabasz_score(X_values, labels)
+    except Exception as e:
+        ch = np.nan
+        print(f"Calinski–Harabasz error for {name}: {e}")
+
+    results.append(
+        {
+            "method": name,
+            "n_clusters": n_clusters,
+            "silhouette": sil,
+            "davies_bouldin": db,
+            "calinski_harabasz": ch,
+        }
+    )
+
+metrics_df = pd.DataFrame(results).set_index("method")
+print("\nInternal validity metrics:")
+print(metrics_df)
+
+if not metrics_df.empty:
+    ranking = metrics_df.copy()
+    ranking["silhouette_rank"] = ranking["silhouette"].rank(
+        ascending=False, method="min"
+    )
+    ranking["db_rank"] = ranking["davies_bouldin"].rank(ascending=True, method="min")
+    ranking["ch_rank"] = ranking["calinski_harabasz"].rank(
+        ascending=False, method="min"
+    )
+    ranking["avg_rank"] = ranking[["silhouette_rank", "db_rank", "ch_rank"]].mean(
+        axis=1
+    )
+    print("\nRanking summary (lower avg_rank = better overall):")
+    print(ranking.sort_values("avg_rank"))
+
+# Análisis de características de los clusters
+
+df_imputed_total = df_imputed.copy()
+df_scaled_total = df_scaled.copy()
+
+# # En la columna de cluster usamos los labels del mejor método (kmeans en este caso)
+# df_imputed_total["cluster"] = cluster_labels
+# df_scaled_total["cluster"] = cluster_labels
+
+cluster_summary_scaled = df_imputed_total.groupby("cluster").mean()
+
+# Análisis de las características económicas
+cluster_summary_scaled = df_imputed_total.groupby("cluster").mean()
+
+cols = list(cluster_summary_scaled.columns)
+try:
+    if hasattr(scaler, "feature_names_in_"):
+        all_features = list(scaler.feature_names_in_)
+    else:
+        all_features = list(df_filtered.columns)
+
+    indices = [all_features.index(c) for c in cols]
+    means = scaler.mean_[indices]
+    scales = scaler.scale_[indices]
+
+    unscaled_values = cluster_summary_scaled.values * scales + means
+    cluster_summary_unscaled = pd.DataFrame(
+        unscaled_values, columns=cols, index=cluster_summary_scaled.index
+    )
+except Exception:
+    cluster_summary_unscaled = pd.DataFrame(
+        scaler.inverse_transform(cluster_summary_scaled),
+        columns=cluster_summary_scaled.columns,
+        index=cluster_summary_scaled.index,
+    )
+
+print(cluster_summary_unscaled)
+
+clustersnumber = len(cluster_summary_unscaled)
+
+
+# # ==================================================
+# # VISUALIZACIÓN DE RESULTADOS
+# # ==================================================
+# import pycountry
+# import difflib
+# import pandas as pd
+# import plotly.express as px
+# import os
+
+# # Optional GeoPandas installation
+# try:
+#     import geopandas as gpd
+#     import matplotlib.pyplot as plt
+
+#     GEOPANDAS_AVAILABLE = True
+# except Exception:
+#     GEOPANDAS_AVAILABLE = False
+
+# OUTPUT_DIR = "maps_output"
+# os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# # -----------------------------
+# # 1. Prepare DataFrame
+# # -----------------------------
+# df_map = df_imputed_total.copy()
+# df_map = df_map.reset_index()  # country becomes a column
+# df_map.rename(columns={"index": "country"}, inplace=True)
+
+# # -----------------------------
+# # 2. Override dictionary
+# # -----------------------------
+# OVERRIDES = {
+#     "United States": "USA",
+#     "Russian Federation": "RUS",
+#     "Czech Republic": "CZE",
+#     "South Korea": "KOR",
+#     "North Korea": "PRK",
+#     "Democratic Republic of the Congo": "COD",
+#     "Republic of Congo": "COG",
+#     "Ivory Coast": "CIV",
+#     "Syria": "SYR",
+#     "Iran": "IRN",
+#     "Venezuela": "VEN",
+#     "Tanzania": "TZA",
+#     "Laos": "LAO",
+# }
+
+
+# # -----------------------------
+# # 3. Converter name → ISO3
+# # -----------------------------
+# def name_to_iso3(name, overrides=OVERRIDES):
+#     if pd.isna(name):
+#         return None
+#     s = str(name).strip()
+
+#     # Override first
+#     if s in overrides:
+#         return overrides[s]
+
+#     # Best pycountry attempt
+#     try:
+#         country = pycountry.countries.lookup(s)
+#         return country.alpha_3
+#     except Exception:
+#         pass
+
+#     # Fuzzy match
+#     try:
+#         all_names = [c.name for c in pycountry.countries]
+#         close = difflib.get_close_matches(s, all_names, n=1, cutoff=0.82)
+#         if close:
+#             c = pycountry.countries.get(name=close[0])
+#             return c.alpha_3
+#     except Exception:
+#         pass
+
+#     return None
+
+
+# # -----------------------------
+# # 4. Build ISO3 column
+# # -----------------------------
+# unique_names = df_map["country"].unique()
+# name_iso_map = {n: name_to_iso3(n) for n in unique_names}
+# df_map["iso3"] = df_map["country"].map(name_iso_map)
+
+# # Save mapping for inspection
+# pd.DataFrame.from_dict(name_iso_map, orient="index", columns=["iso3"]).rename_axis(
+#     "country"
+# ).to_csv(f"{OUTPUT_DIR}/name_to_iso3_map.csv")
+
+# # Print unmapped
+# unmapped = [n for n, iso in name_iso_map.items() if iso is None]
+# print(
+#     f"Mapped {len(unique_names)-len(unmapped)} out of {len(unique_names)} country names."
+# )
+# if unmapped:
+#     print("Unmapped names:", unmapped[:40])
+
+# # -----------------------------
+# # 5. Interactive Plotly map
+# # -----------------------------
+# plot_df = df_map.dropna(subset=["iso3"])
+# if not plot_df.empty:
+#     plot_df["cluster_str"] = plot_df["cluster"].astype(str)
+
+#     fig = px.choropleth(
+#         plot_df,
+#         locations="iso3",
+#         color="cluster_str",
+#         hover_name="country",
+#         title="Country Clusters - General Indicators",
+#         locationmode="ISO-3",
+#         labels={"cluster_str": "Cluster"},
+#     )
+
+#     out_html = f"{OUTPUT_DIR}/general_country_clusters_{clustersnumber}_clusters.html"
+#     fig.write_html(out_html)
+#     print("Interactive map saved:", out_html)
+
+# # -----------------------------
+# # 7. Print clusters neatly
+# # -----------------------------
+# print("\n--- Countries by Cluster ---")
+# for c in sorted(df_map["cluster"].unique()):
+#     members = df_map[df_map["cluster"] == c]["country"].tolist()
+#     print(f"\n=== Cluster {c} ({len(members)} countries) ===")
+#     for country in members:
+#         print(" -", country)
+
+# # Save each cluster to text file
+# for c in sorted(df_map["cluster"].unique()):
+#     members = df_map[df_map["cluster"] == c]["country"].tolist()
+#     with open(
+#         f"{OUTPUT_DIR}/general_cluster_{c}_countries_{clustersnumber}_clusters.txt",
+#         "w",
+#     ) as f:
+#         f.write("\n".join(members))
+
 
 # APRENDIZAJE SUPERVISADO PARA PREDECIR CLUSTERS
 
