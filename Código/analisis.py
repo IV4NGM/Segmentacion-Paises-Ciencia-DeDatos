@@ -1169,13 +1169,15 @@ for cluster_id in range(optimal_k):
             print(f"\nCluster {cluster_id}:")
             print(f"  Countries: {len(cluster_data)}, R²: {r2_cluster:.3f}")
 
-            # Get top predictor
+            # Top 5 predictors by absolute coefficient
             if len(lr_cluster.coef_) > 0:
-                top_idx = np.argmax(np.abs(lr_cluster.coef_))
-                top_feature = X_cluster.columns[top_idx]
-                top_impact = lr_cluster.coef_[top_idx]
-                direction = "increases" if top_impact > 0 else "decreases"
-                print(f"  Key driver: {top_feature} ({direction} GDP)")
+                coefs = pd.Series(lr_cluster.coef_, index=X_cluster.columns)
+                top5 = coefs.abs().sort_values(ascending=False).head(5)
+                print("  Top 5 predictors:")
+                for feat in top5.index:
+                    coef = coefs[feat]
+                    direction = "increases" if coef > 0 else "decreases"
+                    print(f"    - {feat}: coef={coef:.4f} ({direction} GDP)")
 
 
 # Esperanza de vida por cluster
@@ -1199,13 +1201,17 @@ for cluster_id in range(optimal_k):
             print(f"\nCluster {cluster_id}:")
             print(f"  Countries: {len(cluster_data)}, R²: {r2_cluster:.3f}")
 
-            # Get top predictor
+            # Top 5 predictors by absolute coefficient
             if len(lr_cluster.coef_) > 0:
-                top_idx = np.argmax(np.abs(lr_cluster.coef_))
-                top_feature = X_cluster.columns[top_idx]
-                top_impact = lr_cluster.coef_[top_idx]
-                direction = "increases" if top_impact > 0 else "decreases"
-                print(f"  Key driver: {top_feature} ({direction} Life Expectancy)")
+                coefs = pd.Series(lr_cluster.coef_, index=X_cluster.columns)
+                top5 = coefs.abs().sort_values(ascending=False).head(5)
+                print("  Top 5 predictors:")
+                for feat in top5.index:
+                    coef = coefs[feat]
+                    direction = "increases" if coef > 0 else "decreases"
+                    print(
+                        f"    - {feat}: coef={coef:.4f} ({direction} Life Expectancy)"
+                    )
 
 # ANÁLISIS PAREJAS DE VARIABLES
 
@@ -1245,12 +1251,12 @@ x_range = np.linspace(
     df_unscaled["gdp_per_capita"].min(), df_unscaled["gdp_per_capita"].max(), 100
 )
 y_range = lr_simple.predict(x_range.reshape(-1, 1))
-plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_simple:.3f}")
+# plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_simple:.3f}")
 
 plt.xlabel("GDP per capita ($)")
 plt.ylabel("Life Expectancy (years)")
 plt.title("GDP vs Life Expectancy")
-plt.legend()
+# plt.legend()
 plt.grid(True, alpha=0.3)
 
 # Plot 2: Governance vs GDP
@@ -1272,12 +1278,12 @@ r2_gov = lr_gov.score(X_gov, y_gov)
 
 x_range = np.linspace(X_gov.min(), X_gov.max(), 100)
 y_range = lr_gov.predict(x_range.reshape(-1, 1))
-plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_gov:.3f}")
+# plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_gov:.3f}")
 
 plt.xlabel("Government Effectiveness")
 plt.ylabel("GDP per capita ($)")
 plt.title("Governance vs Economic Development")
-plt.legend()
+# plt.legend()
 plt.grid(True, alpha=0.3)
 
 plt.tight_layout()
@@ -1442,4 +1448,42 @@ if len(outliers_positive) > 0:
         plt.legend()
 
 plt.tight_layout()
+plt.show()
+
+
+# Scatter plot with highlights
+# Base colors: color points by their cluster label (if available), otherwise use gray
+sizes = [30] * len(df_unscaled)
+if "cluster" in df_unscaled.columns:
+    # Ensure alignment
+    cluster_series = df_unscaled["cluster"].reindex(df_unscaled.index).astype(int)
+    cmap = plt.get_cmap("tab10")
+    base_colors = [cmap(int(c) % cmap.N) for c in cluster_series]
+else:
+    base_colors = ["gray"] * len(df_unscaled)
+
+colors_scatter = list(base_colors)
+
+for idx in outliers_positive.index:
+    pos = df_unscaled.index.get_loc(idx)
+    colors_scatter[pos] = "red"
+    sizes[pos] = 100
+
+for idx in outliers_negative.index:
+    pos = df_unscaled.index.get_loc(idx)
+    colors_scatter[pos] = "green"
+    sizes[pos] = 100
+
+plt.scatter(
+    df_unscaled["gdp_per_capita"],
+    df_unscaled["life_expectancy"],
+    c=colors_scatter,
+    s=sizes,
+    alpha=0.7,
+)
+plt.xlabel("GDP per capita ($)")
+plt.ylabel("Life Expectancy (years)")
+plt.title(
+    "Development Mismatches\nRed: Over-performing economically, Green: Over-performing health"
+)
 plt.show()
