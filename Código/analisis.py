@@ -1387,8 +1387,17 @@ for country in outliers_negative.index[:5]:
     print(f"  {country}: gap = {outliers_negative.loc[country, 'development_gap']:.1f}")
 
 # Scatter plot with highlights
-colors_scatter = ["gray"] * len(df_unscaled)
+# Base colors: use a blue sequential palette mapped to cluster labels when available
 sizes = [30] * len(df_unscaled)
+if "cluster" in df_unscaled.columns:
+    cluster_series = df_unscaled["cluster"].reindex(df_unscaled.index).astype(int)
+    n_clusters = int(cluster_series.nunique()) if cluster_series.nunique() > 0 else 1
+    palette = sns.color_palette("Blues", n_colors=max(n_clusters, 1))
+    base_colors = [palette[int(c) % len(palette)] for c in cluster_series]
+else:
+    base_colors = ["gray"] * len(df_unscaled)
+
+colors_scatter = list(base_colors)
 
 for idx in outliers_positive.index:
     pos = df_unscaled.index.get_loc(idx)
@@ -1407,11 +1416,33 @@ plt.scatter(
     s=sizes,
     alpha=0.7,
 )
+# Annotate the red/green outliers with country labels
+for idx in outliers_positive.index:
+    if idx in df_unscaled.index:
+        x = df_unscaled.loc[idx, "gdp_per_capita"]
+        y = df_unscaled.loc[idx, "life_expectancy"]
+        plt.annotate(
+            idx,
+            (x, y),
+            fontsize=8,
+            alpha=0.8,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
+        )
+
+for idx in outliers_negative.index:
+    if idx in df_unscaled.index:
+        x = df_unscaled.loc[idx, "gdp_per_capita"]
+        y = df_unscaled.loc[idx, "life_expectancy"]
+        plt.annotate(
+            idx,
+            (x, y),
+            fontsize=8,
+            alpha=0.8,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
+        )
 plt.xlabel("GDP per capita ($)")
 plt.ylabel("Life Expectancy (years)")
-plt.title(
-    "Development Mismatches\nRed: Over-performing economically, Green: Over-performing health"
-)
+plt.title("Development Mismatches\nRed: Better economically, Green: Better health-wise")
 
 plt.subplot(1, 3, 3)
 # Analyze what drives mismatches
@@ -1452,13 +1483,13 @@ plt.show()
 
 
 # Scatter plot with highlights
-# Base colors: color points by their cluster label (if available), otherwise use gray
+# Base colors: use a blue sequential palette mapped to cluster labels when available
 sizes = [30] * len(df_unscaled)
 if "cluster" in df_unscaled.columns:
-    # Ensure alignment
     cluster_series = df_unscaled["cluster"].reindex(df_unscaled.index).astype(int)
-    cmap = plt.get_cmap("tab10")
-    base_colors = [cmap(int(c) % cmap.N) for c in cluster_series]
+    n_clusters = int(cluster_series.nunique()) if cluster_series.nunique() > 0 else 1
+    palette = sns.color_palette("Blues", n_colors=max(n_clusters, 1))
+    base_colors = [palette[int(c) % len(palette)] for c in cluster_series]
 else:
     base_colors = ["gray"] * len(df_unscaled)
 
@@ -1481,9 +1512,33 @@ plt.scatter(
     s=sizes,
     alpha=0.7,
 )
+# Annotate the red/green outliers with country labels
+for idx in outliers_positive.index:
+    if idx in df_unscaled.index:
+        x = df_unscaled.loc[idx, "gdp_per_capita"]
+        y = df_unscaled.loc[idx, "life_expectancy"]
+        plt.annotate(
+            idx,
+            (x, y),
+            fontsize=8,
+            alpha=0.8,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
+        )
+
+for i, idx in enumerate(outliers_negative.index):
+    if idx in df_unscaled.index:
+        x = df_unscaled.loc[idx, "gdp_per_capita"]
+        y = df_unscaled.loc[idx, "life_expectancy"]
+        # Annotate only every 4th green outlier to avoid clutter
+        if i % 4 == 0:
+            plt.annotate(
+                idx,
+                (x, y),
+                fontsize=8,
+                alpha=0.8,
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
+            )
 plt.xlabel("GDP per capita ($)")
 plt.ylabel("Life Expectancy (years)")
-plt.title(
-    "Development Mismatches\nRed: Over-performing economically, Green: Over-performing health"
-)
+plt.title("Development Mismatches\nRed: Better economically, Green: Better health-wise")
 plt.show()
