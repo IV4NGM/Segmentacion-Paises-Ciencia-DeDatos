@@ -172,6 +172,9 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
+print("Varianza explicada acumulada por componentes principales:")
+print(pca.explained_variance_ratio_.cumsum())
+
 
 # Gráficas de los loadings
 plt.figure(figsize=(20, 6))

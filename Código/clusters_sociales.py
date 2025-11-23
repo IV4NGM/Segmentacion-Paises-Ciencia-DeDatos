@@ -171,6 +171,52 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
+print("Varianza explicada acumulada por componentes principales:")
+print(pca.explained_variance_ratio_.cumsum())
+
+
+# Gráficas de los loadings
+plt.figure(figsize=(20, 6))
+
+plt.subplot(1, 3, 1)
+sns.barplot(
+    x=loadings_df["PC1"].sort_values(ascending=False).index,
+    y=loadings_df["PC1"].sort_values(ascending=False).values,
+    palette="viridis",
+    hue=loadings_df["PC1"].sort_values(ascending=False).index,
+    legend=False,
+)
+plt.title("Loadings for PC1")
+plt.xticks(rotation=90)
+plt.ylabel("Loading Value")
+
+plt.subplot(1, 3, 2)
+sns.barplot(
+    x=loadings_df["PC2"].sort_values(ascending=False).index,
+    y=loadings_df["PC2"].sort_values(ascending=False).values,
+    palette="viridis",
+    hue=loadings_df["PC2"].sort_values(ascending=False).index,
+    legend=False,
+)
+plt.title("Loadings for PC2")
+plt.xticks(rotation=90)
+plt.ylabel("Loading Value")
+
+plt.subplot(1, 3, 3)
+sns.barplot(
+    x=loadings_df["PC3"].sort_values(ascending=False).index,
+    y=loadings_df["PC3"].sort_values(ascending=False).values,
+    palette="viridis",
+    hue=loadings_df["PC3"].sort_values(ascending=False).index,
+    legend=False,
+)
+plt.title("Loadings for PC3")
+plt.xticks(rotation=90)
+plt.ylabel("Loading Value")
+
+plt.tight_layout()
+plt.show()
+
 
 # Determinar el número óptimo de clusters
 silhouette_scores = []
@@ -216,196 +262,18 @@ clustersnumber = optimal_k
 
 kmeans = KMeans(n_clusters=clustersnumber, random_state=42, n_init=10)
 df_imputed_fixedclusters = df_imputed[social_indicators].copy()
-# df_scaled_fixedclusters = df_scaled.copy()
+df_scaled_fixedclusters = df_scaled[social_indicators].copy()
 
 cluster_labels = kmeans.fit_predict(df_imputed[social_indicators])
 
 # Add cluster labels to dataframes
 df_imputed_fixedclusters["cluster"] = cluster_labels
-# df_scaled_fixedclusters["cluster"] = cluster_labels
+df_scaled_fixedclusters["cluster"] = cluster_labels
 
 print("Cluster distribution:")
 cluster_dist = df_imputed_fixedclusters["cluster"].value_counts().sort_index()
 for cluster_id, count in cluster_dist.items():
     print(f"Cluster {cluster_id}: {count} countries")
-
-
-# clustersnumber = optimal_k
-
-# kmeans = KMeans(n_clusters=clustersnumber, random_state=42, n_init=10)
-
-# # Prepare fixed-cluster DataFrames
-# df_imputed_fixedclusters = df_imputed[economic_indicators].copy()
-# df_scaled_fixedclusters = df_scaled[economic_indicators].copy()
-
-# # Drop rows with NaN in the selected economic indicators to avoid KMeans error
-# mask_complete = df_scaled_fixedclusters.notna().all(axis=1)
-# if not mask_complete.all():
-#     dropped = (~mask_complete).sum()
-#     print(
-#         f"Dropping {dropped} countries with missing economic indicators before clustering"
-#     )
-
-# df_scaled_for_kmeans = df_scaled_fixedclusters[mask_complete].values
-
-# cluster_labels = kmeans.fit_predict(df_scaled_for_kmeans)
-
-# # Assign labels back to the filtered DataFrames positionally
-# df_imputed_fixedclusters = df_imputed_fixedclusters[mask_complete].copy()
-# df_scaled_fixedclusters = df_scaled_fixedclusters[mask_complete].copy()
-
-# df_imputed_fixedclusters.loc[:, "cluster"] = cluster_labels
-# df_scaled_fixedclusters.loc[:, "cluster"] = cluster_labels
-
-# # Diagnostics: print configured k and unique labels
-# print(f"Requested n_clusters: {clustersnumber}")
-# print(f"KMeans.n_clusters: {kmeans.n_clusters}")
-# unique_labels = np.unique(cluster_labels)
-# print(f"Unique labels found ({len(unique_labels)}): {unique_labels}")
-
-# print("Cluster distribution:")
-# cluster_dist = df_imputed_fixedclusters["cluster"].value_counts().sort_index()
-# for cluster_id, count in cluster_dist.items():
-#     print(f"Cluster {cluster_id}: {count} countries")
-
-# --- Mapping, Maps, and Country Lists when country is the INDEX ---
-
-# import pycountry
-# import difflib
-# import pandas as pd
-# import plotly.express as px
-# import os
-
-# # Optional GeoPandas installation
-# try:
-#     import geopandas as gpd
-#     import matplotlib.pyplot as plt
-
-#     GEOPANDAS_AVAILABLE = True
-# except Exception:
-#     GEOPANDAS_AVAILABLE = False
-
-# OUTPUT_DIR = "maps_output"
-# os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# # -----------------------------
-# # 1. Prepare DataFrame
-# # -----------------------------
-# df_map = df_imputed_fixedclusters.copy()  # <<--- YOUR DATAFRAME
-# df_map = df_map.reset_index()  # country becomes a column
-# df_map.rename(columns={"index": "country"}, inplace=True)
-
-# # -----------------------------
-# # 2. Override dictionary
-# # -----------------------------
-# OVERRIDES = {
-#     "United States": "USA",
-#     "Russian Federation": "RUS",
-#     "Czech Republic": "CZE",
-#     "South Korea": "KOR",
-#     "North Korea": "PRK",
-#     "Democratic Republic of the Congo": "COD",
-#     "Republic of Congo": "COG",
-#     "Ivory Coast": "CIV",
-#     "Syria": "SYR",
-#     "Iran": "IRN",
-#     "Venezuela": "VEN",
-#     "Tanzania": "TZA",
-#     "Laos": "LAO",
-# }
-
-
-# # -----------------------------
-# # 3. Converter name → ISO3
-# # -----------------------------
-# def name_to_iso3(name, overrides=OVERRIDES):
-#     if pd.isna(name):
-#         return None
-#     s = str(name).strip()
-
-#     # Override first
-#     if s in overrides:
-#         return overrides[s]
-
-#     # Best pycountry attempt
-#     try:
-#         country = pycountry.countries.lookup(s)
-#         return country.alpha_3
-#     except Exception:
-#         pass
-
-#     # Fuzzy match
-#     try:
-#         all_names = [c.name for c in pycountry.countries]
-#         close = difflib.get_close_matches(s, all_names, n=1, cutoff=0.82)
-#         if close:
-#             c = pycountry.countries.get(name=close[0])
-#             return c.alpha_3
-#     except Exception:
-#         pass
-
-#     return None
-
-
-# # -----------------------------
-# # 4. Build ISO3 column
-# # -----------------------------
-# unique_names = df_map["country"].unique()
-# name_iso_map = {n: name_to_iso3(n) for n in unique_names}
-# df_map["iso3"] = df_map["country"].map(name_iso_map)
-
-# # Save mapping for inspection
-# pd.DataFrame.from_dict(name_iso_map, orient="index", columns=["iso3"]).rename_axis(
-#     "country"
-# ).to_csv(f"{OUTPUT_DIR}/name_to_iso3_map.csv")
-
-# # Print unmapped
-# unmapped = [n for n, iso in name_iso_map.items() if iso is None]
-# print(
-#     f"Mapped {len(unique_names)-len(unmapped)} out of {len(unique_names)} country names."
-# )
-# if unmapped:
-#     print("Unmapped names:", unmapped[:40])
-
-# # -----------------------------
-# # 5. Interactive Plotly map
-# # -----------------------------
-# plot_df = df_map.dropna(subset=["iso3"])
-# if not plot_df.empty:
-#     plot_df["cluster_str"] = plot_df["cluster"].astype(str)
-
-#     fig = px.choropleth(
-#         plot_df,
-#         locations="iso3",
-#         color="cluster_str",
-#         hover_name="country",
-#         title="Country Clusters - Social Indicators",
-#         locationmode="ISO-3",
-#         labels={"cluster_str": "Cluster"},
-#     )
-
-#     out_html = f"{OUTPUT_DIR}/social_country_clusters_{clustersnumber}_clusters.html"
-#     fig.write_html(out_html)
-#     print("Interactive map saved:", out_html)
-
-# # -----------------------------
-# # 7. Print clusters neatly
-# # -----------------------------
-# print("\n--- Countries by Cluster ---")
-# for c in sorted(df_map["cluster"].unique()):
-#     members = df_map[df_map["cluster"] == c]["country"].tolist()
-#     print(f"\n=== Cluster {c} ({len(members)} countries) ===")
-#     for country in members:
-#         print(" -", country)
-
-# # Save each cluster to text file
-# for c in sorted(df_map["cluster"].unique()):
-#     members = df_map[df_map["cluster"] == c]["country"].tolist()
-#     with open(
-#         f"{OUTPUT_DIR}/social_cluster_{c}_countries_{clustersnumber}_clusters.txt",
-#         "w",
-#     ) as f:
-#         f.write("\n".join(members))
 
 
 # Visualizamos los clusters en 2D usando los dos primeros componentes principales
@@ -494,51 +362,6 @@ for cluster_id in sorted(df_imputed_fixedclusters["cluster"].unique()):
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.show()
-
-# Análisis de características de los clusters
-
-df_imputed_total = df_imputed.copy()
-df_scaled_total = df_scaled.copy()
-
-df_imputed_total["cluster"] = cluster_labels
-df_scaled_total["cluster"] = cluster_labels
-
-cluster_summary_scaled = df_imputed_total.groupby("cluster").mean()
-
-# Transformar el resumen escalado de los clusters para obtener valores en la escala original
-cluster_summary_unscaled = pd.DataFrame(
-    scaler.inverse_transform(cluster_summary_scaled),
-    columns=cluster_summary_scaled.columns,
-    index=cluster_summary_scaled.index,
-)
-print(cluster_summary_unscaled)
-
-# Análisis de las características sociales
-cluster_summary_scaled = df_imputed_fixedclusters.groupby("cluster").mean()
-
-cols = list(cluster_summary_scaled.columns)
-try:
-    if hasattr(scaler, "feature_names_in_"):
-        all_features = list(scaler.feature_names_in_)
-    else:
-        all_features = list(df_filtered.columns)
-
-    indices = [all_features.index(c) for c in cols]
-    means = scaler.mean_[indices]
-    scales = scaler.scale_[indices]
-
-    unscaled_values = cluster_summary_scaled.values * scales + means
-    cluster_summary_unscaled = pd.DataFrame(
-        unscaled_values, columns=cols, index=cluster_summary_scaled.index
-    )
-except Exception:
-    cluster_summary_unscaled = pd.DataFrame(
-        scaler.inverse_transform(cluster_summary_scaled),
-        columns=cluster_summary_scaled.columns,
-        index=cluster_summary_scaled.index,
-    )
-
-print(cluster_summary_unscaled)
 
 df_imputed = df_imputed_fixedclusters.copy()
 df_scaled = df_imputed.copy()
@@ -837,7 +660,190 @@ if not metrics_df.empty:
     print(ranking.sort_values("avg_rank"))
 
 
+# Análisis de características de los clusters
+
+df_imputed_total = df_imputed.copy()
+df_scaled_total = df_scaled.copy()
+
+# En la columna de cluster usamos los labels del mejor método (jerárquico en este caso)
+df_imputed_total["cluster"] = hc_optimal_labels
+df_scaled_total["cluster"] = hc_optimal_labels
+
+cluster_summary_scaled = df_imputed_total.groupby("cluster").mean()
+
+# Análisis de las características sociales
+cluster_summary_scaled = df_imputed_total.groupby("cluster").mean()
+
+cols = list(cluster_summary_scaled.columns)
+try:
+    if hasattr(scaler, "feature_names_in_"):
+        all_features = list(scaler.feature_names_in_)
+    else:
+        all_features = list(df_filtered.columns)
+
+    indices = [all_features.index(c) for c in cols]
+    means = scaler.mean_[indices]
+    scales = scaler.scale_[indices]
+
+    unscaled_values = cluster_summary_scaled.values * scales + means
+    cluster_summary_unscaled = pd.DataFrame(
+        unscaled_values, columns=cols, index=cluster_summary_scaled.index
+    )
+except Exception:
+    cluster_summary_unscaled = pd.DataFrame(
+        scaler.inverse_transform(cluster_summary_scaled),
+        columns=cluster_summary_scaled.columns,
+        index=cluster_summary_scaled.index,
+    )
+
+print(cluster_summary_unscaled)
+
+
+# # ==================================================
+# # VISUALIZACIÓN DE RESULTADOS
+# # ==================================================
+# import pycountry
+# import difflib
+# import pandas as pd
+# import plotly.express as px
+# import os
+
+# # Optional GeoPandas installation
+# try:
+#     import geopandas as gpd
+#     import matplotlib.pyplot as plt
+
+#     GEOPANDAS_AVAILABLE = True
+# except Exception:
+#     GEOPANDAS_AVAILABLE = False
+
+# OUTPUT_DIR = "maps_output"
+# os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# # -----------------------------
+# # 1. Prepare DataFrame
+# # -----------------------------
+# df_map = df_imputed_total.copy()
+# df_map = df_map.reset_index()  # country becomes a column
+# df_map.rename(columns={"index": "country"}, inplace=True)
+
+# # -----------------------------
+# # 2. Override dictionary
+# # -----------------------------
+# OVERRIDES = {
+#     "United States": "USA",
+#     "Russian Federation": "RUS",
+#     "Czech Republic": "CZE",
+#     "South Korea": "KOR",
+#     "North Korea": "PRK",
+#     "Democratic Republic of the Congo": "COD",
+#     "Republic of Congo": "COG",
+#     "Ivory Coast": "CIV",
+#     "Syria": "SYR",
+#     "Iran": "IRN",
+#     "Venezuela": "VEN",
+#     "Tanzania": "TZA",
+#     "Laos": "LAO",
+# }
+
+
+# # -----------------------------
+# # 3. Converter name → ISO3
+# # -----------------------------
+# def name_to_iso3(name, overrides=OVERRIDES):
+#     if pd.isna(name):
+#         return None
+#     s = str(name).strip()
+
+#     # Override first
+#     if s in overrides:
+#         return overrides[s]
+
+#     # Best pycountry attempt
+#     try:
+#         country = pycountry.countries.lookup(s)
+#         return country.alpha_3
+#     except Exception:
+#         pass
+
+#     # Fuzzy match
+#     try:
+#         all_names = [c.name for c in pycountry.countries]
+#         close = difflib.get_close_matches(s, all_names, n=1, cutoff=0.82)
+#         if close:
+#             c = pycountry.countries.get(name=close[0])
+#             return c.alpha_3
+#     except Exception:
+#         pass
+
+#     return None
+
+
+# # -----------------------------
+# # 4. Build ISO3 column
+# # -----------------------------
+# unique_names = df_map["country"].unique()
+# name_iso_map = {n: name_to_iso3(n) for n in unique_names}
+# df_map["iso3"] = df_map["country"].map(name_iso_map)
+
+# # Save mapping for inspection
+# pd.DataFrame.from_dict(name_iso_map, orient="index", columns=["iso3"]).rename_axis(
+#     "country"
+# ).to_csv(f"{OUTPUT_DIR}/name_to_iso3_map.csv")
+
+# # Print unmapped
+# unmapped = [n for n, iso in name_iso_map.items() if iso is None]
+# print(
+#     f"Mapped {len(unique_names)-len(unmapped)} out of {len(unique_names)} country names."
+# )
+# if unmapped:
+#     print("Unmapped names:", unmapped[:40])
+
+# # -----------------------------
+# # 5. Interactive Plotly map
+# # -----------------------------
+# plot_df = df_map.dropna(subset=["iso3"])
+# if not plot_df.empty:
+#     plot_df["cluster_str"] = plot_df["cluster"].astype(str)
+
+#     fig = px.choropleth(
+#         plot_df,
+#         locations="iso3",
+#         color="cluster_str",
+#         hover_name="country",
+#         title="Country Clusters - Social Indicators",
+#         locationmode="ISO-3",
+#         labels={"cluster_str": "Cluster"},
+#     )
+
+#     out_html = f"{OUTPUT_DIR}/social_country_clusters_{clustersnumber}_clusters.html"
+#     fig.write_html(out_html)
+#     print("Interactive map saved:", out_html)
+
+# # -----------------------------
+# # 7. Print clusters neatly
+# # -----------------------------
+# print("\n--- Countries by Cluster ---")
+# for c in sorted(df_map["cluster"].unique()):
+#     members = df_map[df_map["cluster"] == c]["country"].tolist()
+#     print(f"\n=== Cluster {c} ({len(members)} countries) ===")
+#     for country in members:
+#         print(" -", country)
+
+# # Save each cluster to text file
+# for c in sorted(df_map["cluster"].unique()):
+#     members = df_map[df_map["cluster"] == c]["country"].tolist()
+#     with open(
+#         f"{OUTPUT_DIR}/social_cluster_{c}_countries_{clustersnumber}_clusters.txt",
+#         "w",
+#     ) as f:
+#         f.write("\n".join(members))
+
+
 # APRENDIZAJE SUPERVISADO PARA PREDECIR CLUSTERS
+
+# En la columna de cluster usamos los labels del mejor método (jerárquico en este caso)
+df_scaled["cluster"] = hc_optimal_labels
 
 df_scaled = df_scaled.drop(
     ["hc_cluster", "hc_cluster_optimal", "spectral_cluster_optimal"], axis=1
