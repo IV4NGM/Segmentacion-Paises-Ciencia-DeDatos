@@ -1350,7 +1350,7 @@ for cluster_id in range(optimal_k):
 # ANÁLISIS PAREJAS DE VARIABLES
 
 
-X_bivariate = df_unscaled[["government_effectiveness"]].values
+X_bivariate = df_unscaled[["life_expectancy"]].values
 y_bivariate = df_unscaled["gdp_per_capita"].values
 
 lr_simple = LinearRegression()
@@ -1359,10 +1359,10 @@ lr_simple.fit(X_bivariate, y_bivariate)
 y_pred_simple = lr_simple.predict(X_bivariate)
 r2_simple = r2_score(y_bivariate, y_pred_simple)
 
-print(f"Government Effectiveness vs GDP per Capita:")
+print(f"Life Expectancy vs GDP per Capita:")
 print(f"  R²: {r2_simple:.3f}")
 print(
-    f"  Coefficient: {lr_simple.coef_[0]:.6f} (each unit increase in Government Effectiveness → {lr_simple.coef_[0]:.2f} dollars GDP per capita)"
+    f"  Coefficient: {lr_simple.coef_[0]:.6f} (each unit increase in Life Expectancy → {lr_simple.coef_[0]:.2f} dollars GDP per capita)"
 )
 print(f"  Intercept: {lr_simple.intercept_:.2f} dollars")
 
@@ -1386,8 +1386,8 @@ for i, c in enumerate(clusters):
     else:
         mask = df_imputed["cluster"] == c
 
-    x = df_unscaled.loc[mask, "government_effectiveness"].dropna()
-    y = df_unscaled.loc[mask, "life_expectancy"].dropna()
+    x = df_unscaled.loc[mask, "life_expectancy"].dropna()
+    y = df_unscaled.loc[mask, "gdp_per_capita"].dropna()
 
     if len(x) > 0:
         plt.scatter(
@@ -1402,16 +1402,16 @@ for i, c in enumerate(clusters):
             lr_c = LinearRegression()
             lr_c.fit(x.values.reshape(-1, 1), y.values)
             x_line = np.linspace(
-                df_unscaled["government_effectiveness"].min(),
-                df_unscaled["government_effectiveness"].max(),
+                df_unscaled["life_expectancy"].min(),
+                df_unscaled["life_expectancy"].max(),
                 100,
             )
             y_line = lr_c.predict(x_line.reshape(-1, 1))
             plt.plot(x_line, y_line, color=palette[i % len(palette)], linestyle="--")
 
-plt.xlabel("Government Effectiveness")
-plt.ylabel("Life Expectancy (years)")
-plt.title("Government Effectiveness vs Life Expectancy (Per-Cluster Regression)")
+plt.xlabel("Life Expectancy (years)")
+plt.ylabel("GDP per Capita ($)")
+plt.title("Life Expectancy vs GDP per Capita (Per-Cluster Regression)")
 plt.legend(fontsize=8)
 plt.grid(True, alpha=0.3)
 
