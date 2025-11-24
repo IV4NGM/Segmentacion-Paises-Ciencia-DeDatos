@@ -963,6 +963,10 @@ plt.show()
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error
 import scipy.stats as stats
+import statsmodels.api as sm
+from statsmodels.stats.diagnostic import het_breuschpagan
+from statsmodels.stats.stattools import durbin_watson
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 
 X_reg = df_scaled.drop(["gdp_per_capita", "cluster"], axis=1, errors="ignore")
@@ -1178,6 +1182,71 @@ for cluster_id in range(optimal_k):
                     coef = coefs[feat]
                     direction = "increases" if coef > 0 else "decreases"
                     print(f"    - {feat}: coef={coef:.4f} ({direction} GDP)")
+            # --- Additional hypothesis tests & diagnostics using statsmodels OLS ---
+            try:
+                Xc = sm.add_constant(X_cluster)
+                model_sm = sm.OLS(y_cluster, Xc).fit()
+                # Print compact summary stats
+                print("  OLS summary (condensed):")
+                print(
+                    f"    Adj. R²: {model_sm.rsquared_adj:.3f}, F-stat: {model_sm.fvalue:.3f}, F p-value: {model_sm.f_pvalue:.3e}"
+                )
+
+                # Coefficients with p-values
+                coef_table = pd.DataFrame(
+                    {
+                        "coef": model_sm.params,
+                        "pval": model_sm.pvalues,
+                    }
+                )
+                print("    Coefficients and p-values:")
+                for idx_row, row in coef_table.iterrows():
+                    print(
+                        f"      {idx_row}: coef={row['coef']:.4f}, p={row['pval']:.3g}"
+                    )
+
+                resid = model_sm.resid
+                # Normality test
+                try:
+                    sh_stat, sh_p = stats.shapiro(resid)
+                    print(f"    Shapiro-Wilk: stat={sh_stat:.4f}, p={sh_p:.4f}")
+                except Exception as e:
+                    print(f"    Shapiro test failed: {e}")
+
+                # Heteroscedasticity (Breusch–Pagan)
+                try:
+                    bp = het_breuschpagan(resid, Xc)
+                    bp_labels = ["LM stat", "LM p-value", "f-stat", "f p-value"]
+                    print("    Breusch–Pagan:")
+                    for lab, val in zip(bp_labels, bp):
+                        print(f"      {lab}: {val:.4f}")
+                except Exception as e:
+                    print(f"    Breusch–Pagan test failed: {e}")
+
+                # Autocorrelation (Durbin–Watson)
+                try:
+                    dw = durbin_watson(resid)
+                    print(f"    Durbin–Watson: {dw:.4f}")
+                except Exception as e:
+                    print(f"    Durbin–Watson failed: {e}")
+
+                # VIF (if >1 predictor)
+                try:
+                    if X_cluster.shape[1] > 0:
+                        vif_data = []
+                        X_vif = X_cluster.values
+                        for j in range(X_vif.shape[1]):
+                            vif = variance_inflation_factor(X_vif, j)
+                            vif_data.append((X_cluster.columns[j], vif))
+                        print("    VIF:")
+                        for name, vif in vif_data:
+                            print(f"      {name}: {vif:.2f}")
+                except Exception as e:
+                    print(f"    VIF calculation failed: {e}")
+            except Exception as e:
+                print(
+                    f"  Statsmodels OLS diagnostics failed for cluster {cluster_id}: {e}"
+                )
 
 
 # Esperanza de vida por cluster
@@ -1212,12 +1281,77 @@ for cluster_id in range(optimal_k):
                     print(
                         f"    - {feat}: coef={coef:.4f} ({direction} Life Expectancy)"
                     )
+            # --- Additional hypothesis tests & diagnostics using statsmodels OLS ---
+            try:
+                Xc = sm.add_constant(X_cluster)
+                model_sm = sm.OLS(y_cluster, Xc).fit()
+                # Print compact summary stats
+                print("  OLS summary (condensed):")
+                print(
+                    f"    Adj. R²: {model_sm.rsquared_adj:.3f}, F-stat: {model_sm.fvalue:.3f}, F p-value: {model_sm.f_pvalue:.3e}"
+                )
+
+                # Coefficients with p-values
+                coef_table = pd.DataFrame(
+                    {
+                        "coef": model_sm.params,
+                        "pval": model_sm.pvalues,
+                    }
+                )
+                print("    Coefficients and p-values:")
+                for idx_row, row in coef_table.iterrows():
+                    print(
+                        f"      {idx_row}: coef={row['coef']:.4f}, p={row['pval']:.3g}"
+                    )
+
+                resid = model_sm.resid
+                # Normality test
+                try:
+                    sh_stat, sh_p = stats.shapiro(resid)
+                    print(f"    Shapiro-Wilk: stat={sh_stat:.4f}, p={sh_p:.4f}")
+                except Exception as e:
+                    print(f"    Shapiro test failed: {e}")
+
+                # Heteroscedasticity (Breusch–Pagan)
+                try:
+                    bp = het_breuschpagan(resid, Xc)
+                    bp_labels = ["LM stat", "LM p-value", "f-stat", "f p-value"]
+                    print("    Breusch–Pagan:")
+                    for lab, val in zip(bp_labels, bp):
+                        print(f"      {lab}: {val:.4f}")
+                except Exception as e:
+                    print(f"    Breusch–Pagan test failed: {e}")
+
+                # Autocorrelation (Durbin–Watson)
+                try:
+                    dw = durbin_watson(resid)
+                    print(f"    Durbin–Watson: {dw:.4f}")
+                except Exception as e:
+                    print(f"    Durbin–Watson failed: {e}")
+
+                # VIF (if >1 predictor)
+                try:
+                    if X_cluster.shape[1] > 0:
+                        vif_data = []
+                        X_vif = X_cluster.values
+                        for j in range(X_vif.shape[1]):
+                            vif = variance_inflation_factor(X_vif, j)
+                            vif_data.append((X_cluster.columns[j], vif))
+                        print("    VIF:")
+                        for name, vif in vif_data:
+                            print(f"      {name}: {vif:.2f}")
+                except Exception as e:
+                    print(f"    VIF calculation failed: {e}")
+            except Exception as e:
+                print(
+                    f"  Statsmodels OLS diagnostics failed for cluster {cluster_id}: {e}"
+                )
 
 # ANÁLISIS PAREJAS DE VARIABLES
 
 
-X_bivariate = df_unscaled[["gdp_per_capita"]].values
-y_bivariate = df_unscaled["life_expectancy"].values
+X_bivariate = df_unscaled[["government_effectiveness"]].values
+y_bivariate = df_unscaled["gdp_per_capita"].values
 
 lr_simple = LinearRegression()
 lr_simple.fit(X_bivariate, y_bivariate)
@@ -1225,69 +1359,158 @@ lr_simple.fit(X_bivariate, y_bivariate)
 y_pred_simple = lr_simple.predict(X_bivariate)
 r2_simple = r2_score(y_bivariate, y_pred_simple)
 
-print(f"GDP per capita vs Life Expectancy:")
+print(f"Government Effectiveness vs GDP per Capita:")
 print(f"  R²: {r2_simple:.3f}")
 print(
-    f"  Coefficient: {lr_simple.coef_[0]:.6f} (each $1k GDP → {lr_simple.coef_[0]*1000:.2f} years life expectancy)"
+    f"  Coefficient: {lr_simple.coef_[0]:.6f} (each unit increase in Government Effectiveness → {lr_simple.coef_[0]:.2f} dollars GDP per capita)"
 )
-print(f"  Intercept: {lr_simple.intercept_:.2f} years")
+print(f"  Intercept: {lr_simple.intercept_:.2f} dollars")
 
 
-# Visualize bivariate relationships
+# Visualize bivariate relationships with per-cluster regression lines
 plt.figure(figsize=(15, 5))
 
-# Plot 1: GDP vs Life Expectancy
+# Prepare cluster list and palette
+clusters = (
+    sorted(df_imputed["cluster"].unique())
+    if "cluster" in df_imputed.columns
+    else [None]
+)
+palette = sns.color_palette("tab10", n_colors=max(len(clusters), 1))
+
+# Plot 1: GDP vs Life Expectancy (one regression per cluster)
 plt.subplot(1, 2, 1)
-plt.scatter(
-    df_unscaled["gdp_per_capita"],
-    df_unscaled["life_expectancy"],
-    alpha=0.6,
-    c=df_imputed["cluster"],
-    cmap="tab10",
-)
+for i, c in enumerate(clusters):
+    if c is None:
+        mask = pd.Series([True] * len(df_unscaled), index=df_unscaled.index)
+    else:
+        mask = df_imputed["cluster"] == c
 
-# Plot regression line
-x_range = np.linspace(
-    df_unscaled["gdp_per_capita"].min(), df_unscaled["gdp_per_capita"].max(), 100
-)
-y_range = lr_simple.predict(x_range.reshape(-1, 1))
-# plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_simple:.3f}")
+    x = df_unscaled.loc[mask, "government_effectiveness"].dropna()
+    y = df_unscaled.loc[mask, "life_expectancy"].dropna()
 
-plt.xlabel("GDP per capita ($)")
+    if len(x) > 0:
+        plt.scatter(
+            x,
+            y,
+            alpha=0.6,
+            label=f"Cluster {c} (n={len(x)})",
+            color=palette[i % len(palette)],
+        )
+
+        if len(x) > 1:
+            lr_c = LinearRegression()
+            lr_c.fit(x.values.reshape(-1, 1), y.values)
+            x_line = np.linspace(
+                df_unscaled["government_effectiveness"].min(),
+                df_unscaled["government_effectiveness"].max(),
+                100,
+            )
+            y_line = lr_c.predict(x_line.reshape(-1, 1))
+            plt.plot(x_line, y_line, color=palette[i % len(palette)], linestyle="--")
+
+plt.xlabel("Government Effectiveness")
 plt.ylabel("Life Expectancy (years)")
-plt.title("GDP vs Life Expectancy")
-# plt.legend()
+plt.title("Government Effectiveness vs Life Expectancy (Per-Cluster Regression)")
+plt.legend(fontsize=8)
 plt.grid(True, alpha=0.3)
 
-# Plot 2: Governance vs GDP
+# Plot 2: Government Effectiveness vs GDP (one regression per cluster)
 plt.subplot(1, 2, 2)
-plt.scatter(
-    df_unscaled["government_effectiveness"],
-    df_unscaled["gdp_per_capita"],
-    alpha=0.6,
-    c=df_imputed["cluster"],
-    cmap="tab10",
-)
+for i, c in enumerate(clusters):
+    if c is None:
+        mask = pd.Series([True] * len(df_unscaled), index=df_unscaled.index)
+    else:
+        mask = df_imputed["cluster"] == c
 
-# Simple regression line
-X_gov = df_unscaled[["government_effectiveness"]].values
-y_gov = df_unscaled["gdp_per_capita"].values
-lr_gov = LinearRegression()
-lr_gov.fit(X_gov, y_gov)
-r2_gov = lr_gov.score(X_gov, y_gov)
+    x = df_unscaled.loc[mask, "government_effectiveness"].dropna()
+    y = df_unscaled.loc[mask, "gdp_per_capita"].dropna()
 
-x_range = np.linspace(X_gov.min(), X_gov.max(), 100)
-y_range = lr_gov.predict(x_range.reshape(-1, 1))
-# plt.plot(x_range, y_range, "r-", linewidth=2, label=f"R² = {r2_gov:.3f}")
+    if len(x) > 0:
+        plt.scatter(
+            x,
+            y,
+            alpha=0.6,
+            label=f"Cluster {c} (n={len(x)})",
+            color=palette[i % len(palette)],
+        )
+
+        if len(x) > 1:
+            lr_c = LinearRegression()
+            lr_c.fit(x.values.reshape(-1, 1), y.values)
+            x_line = np.linspace(x.min(), x.max(), 100)
+            y_line = lr_c.predict(x_line.reshape(-1, 1))
+            plt.plot(x_line, y_line, color=palette[i % len(palette)], linestyle="--")
 
 plt.xlabel("Government Effectiveness")
 plt.ylabel("GDP per capita ($)")
-plt.title("Governance vs Economic Development")
-# plt.legend()
+plt.title("Governance vs GDP (Per-Cluster Regression)")
+plt.legend(fontsize=8)
 plt.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.show()
+
+# --- Regression diagnostics for the simple Government Effectiveness → GDP model ---
+residuals = y_bivariate - y_pred_simple
+fitted = y_pred_simple
+
+plt.figure(figsize=(12, 10))
+
+plt.subplot(2, 2, 1)
+plt.scatter(fitted, residuals, alpha=0.7)
+plt.axhline(0, color="red", linestyle="--")
+plt.xlabel("Fitted values")
+plt.ylabel("Residuals")
+plt.title("Residuals vs Fitted (Homoscedasticity)")
+
+plt.subplot(2, 2, 2)
+sm.qqplot(residuals, line="45", ax=plt.gca())
+plt.title("Q-Q Plot (Normality of residuals)")
+
+plt.subplot(2, 2, 3)
+plt.hist(residuals, bins=20, edgecolor="k", alpha=0.7)
+plt.xlabel("Residual")
+plt.ylabel("Frequency")
+plt.title("Residuals Histogram")
+
+plt.subplot(2, 2, 4)
+plt.scatter(df_unscaled["gdp_per_capita"], residuals, alpha=0.6)
+plt.xlabel("GDP per capita ($)")
+plt.ylabel("Residuals")
+plt.title("Residuals vs GDP per capita (Check non-linearity)")
+
+plt.tight_layout()
+plt.show()
+
+# Statistical tests
+print(
+    "\n--- Regression diagnostics for Government Effectiveness → GDP per Capita (overall model) ---"
+)
+try:
+    shapiro_stat, shapiro_p = stats.shapiro(residuals)
+    print(f"Shapiro-Wilk test: stat={shapiro_stat:.4f}, p-value={shapiro_p:.4f}")
+except Exception as e:
+    print(f"Shapiro test failed: {e}")
+
+try:
+    # Breusch–Pagan test: requires exogenous variables used in model (add constant)
+    exog = sm.add_constant(X_bivariate)
+    bp_test = het_breuschpagan(residuals, exog)
+    bp_labels = ["Lagrange multiplier stat", "p-value", "f-value", "f p-value"]
+    print("Breusch–Pagan test:")
+    for lab, val in zip(bp_labels, bp_test):
+        print(f"  {lab}: {val:.4f}")
+except Exception as e:
+    print(f"Breusch–Pagan test failed: {e}")
+
+try:
+    dw = durbin_watson(residuals)
+    print(f"Durbin–Watson statistic: {dw:.4f}")
+except Exception as e:
+    print(f"Durbin–Watson test failed: {e}")
+
+print("Note: Interpret p-values with care (small samples can be noisy).\n")
 
 # Correlaciones entre variables importantes
 
